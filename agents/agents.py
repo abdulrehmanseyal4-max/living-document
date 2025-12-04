@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
-from prompts import (
+from agents.prompts import (
     STRICT_SYSTEM_PROMPT,
     AUDIT_PROMPT,
     INTEGRATION_PROMPT,

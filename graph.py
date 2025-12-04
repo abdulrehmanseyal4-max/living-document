@@ -1,10 +1,11 @@
 import datetime
 from langgraph.graph import StateGraph, END
+from dotenv import load_dotenv
 
-import github_utils
-import rag_utils
-import agents
-from state import AgentState
+import utils.github_utils as github_utils
+import utils.rag_utils as rag_utils
+import agents.agents as agents
+from agents.state import AgentState
 
 
 def setup_node(state: AgentState):

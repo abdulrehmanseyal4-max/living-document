@@ -2,7 +2,6 @@ import datetime
 from urllib.parse import urlparse
 from github import Github, Auth, Repository
 
-
 def extract_repo_path(url_or_path: str) -> str:
     """Cleans up the input URL to get 'owner/repo'."""
     if "github.com" not in url_or_path:
@@ -31,40 +30,61 @@ def fetch_latest_commit_diff(repo: Repository.Repository):
 
 def fetch_repo_file_structure(repo: Repository.Repository, limit_chars=20000):
     """
-    Fetches ALL files as individual documents for the RAG system.
-    Returns a list of dicts: [{'source': path, 'content': text}]
+    Fetches ALL text-based files recursively.
+    Includes smart filtering to skip massive lockfiles and binaries.
     """
     documents = []
     queue = list(repo.get_contents(""))
     
     files_processed = 0
-    MAX_FILES = 200 
+    MAX_FILES = 300
     
-    allowed_extensions = {'.py', '.js', '.ts', '.md', '.txt', '.json', '.html', '.css', '.java', '.cpp'}
+    ignored_extensions = {
+        '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.tar', '.gz',
+        '.exe', '.dll', '.so', '.bin', '.pyc', '.class', '.jar',
+        '.map', '.log', '.lock' 
+    }
+    
+    ignored_files = {
+        'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'poetry.lock', 'uv.lock',
+        '.DS_Store', '.gitignore', '.env', 'LICENSE', 'Dockerfile'
+    }
 
     while queue and files_processed < MAX_FILES:
         file_content = queue.pop(0)
         
         if file_content.type == "dir":
+            if file_content.name.startswith('.'):
+                continue
             queue.extend(repo.get_contents(file_content.path))
         else:
+            if file_content.name in ignored_files:
+                continue
+                
             _, ext = file_content.name.lower().rsplit('.', 1) if '.' in file_content.name else (None, '')
-            ext = f".{ext}"
+            ext = f".{ext}" if ext else ""
             
-            if ext in allowed_extensions:
-                try:
-                    text = file_content.decoded_content.decode("utf-8")
-                    documents.append({"source": file_content.path, "content": text})
-                    files_processed += 1
-                except:
-                    pass 
+            if ext in ignored_extensions:
+                continue
+
+            try:
+                text = file_content.decoded_content.decode("utf-8")
+                
+                if not text.strip() or len(text) > 100000:
+                    continue
+                    
+                documents.append({"source": file_content.path, "content": text})
+                files_processed += 1
+            except UnicodeDecodeError:
+                pass 
+            except Exception:
+                pass
             
     return documents
 
 def create_multi_file_pr(repo: Repository.Repository, file_updates: list, title: str, body: str):
     """
     Creates a PR with MULTIPLE file changes (README + CHANGELOG).
-    file_updates = [{'path': 'README.md', 'content': '...'}, {'path': 'CHANGELOG.md', ...}]
     """
     default_branch = repo.get_branch(repo.default_branch)
     branch_name = f"docs/update-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
