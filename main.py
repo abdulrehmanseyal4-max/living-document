@@ -10,7 +10,7 @@ import graph
 load_dotenv()
 
 def run_agent():
-    print("---Living Documentation Agent (Final Production Build) ---")
+    print("---Living Documentation Agent---")
     
     token = os.getenv("GITHUB_TOKEN")
     if not token: 
@@ -23,18 +23,18 @@ def run_agent():
 
     if os.getenv("GITHUB_REPOSITORY"):
         repo_name = os.getenv("GITHUB_REPOSITORY")
-        print(f"Automation detected. Target: {repo_name}")
+        print(f"Auto-Targeting: {repo_name}")
     else:
         raw_input = input("Enter GitHub repo (e.g. username/project): ")
         repo_name = github_utils.extract_repo_path(raw_input)
     
-    print(f"🔍 Locating {repo_name}...")
+    print(f"Locating {repo_name}...")
     try:
         repo = g.get_repo(repo_name)
     except:
         return print(f"❌ Repo '{repo_name}' not found or token lacks permissions.")
 
-    print("🚀 Initializing Agent State...")
+    print("Initializing Agent State...")
     initial_state = {
         "repo": repo,
         "retriever": None,
@@ -53,7 +53,7 @@ def run_agent():
     print("⚡ Starting Workflow...")
     app = graph.build_graph()
     app.invoke(initial_state)
-    print("Workflow Finished Successfully.")
+    print("✅ Workflow Finished Successfully.")
 
 if __name__ == "__main__":
     run_agent()

@@ -16,8 +16,40 @@ load_dotenv()
 
 llm = ChatOllama(model="llama3.1:latest", temperature=0.1)
 
+def clean_response(text):
+    """
+    Aggressively removes conversational filler from start AND end.
+    """
+    lines = text.strip().split('\n')
+    if lines and (lines[0].lower().startswith("here is") or lines[0].lower().startswith("sure")):
+        lines = lines[1:]
+    
+    filler_phrases = [
+        "I've made the following changes",
+        "Here is the updated",
+        "I have updated",
+        "Changes made:",
+        "Summary of changes:",
+        "Here is the polished",
+        "I have fixed",
+        "Here is the code"
+    ]
+    
+    clean_lines = []
+    found_filler = False
+    
+    for line in lines:
+        for phrase in filler_phrases:
+            if phrase.lower() in line.lower() and len(line) < 100:
+                found_filler = True
+                break
+        if found_filler:
+            break
+        clean_lines.append(line)
+        
+    return "\n".join(clean_lines).strip()
+
 def run_stream(chain, inputs):
-    """Runs the chain with live terminal output, returning final string."""
     full_response = ""
     print("\033[96m   > \033[0m", end="", flush=True) 
     
@@ -27,8 +59,7 @@ def run_stream(chain, inputs):
         full_response += content
         
     print("\n")
-    return full_response
-
+    return clean_response(full_response)
 
 def draft_fresh_readme(context):
     print("Agent: Drafting fresh README...")
