@@ -145,7 +145,7 @@ def should_ignore_commit(repo):
         is_docs_only = all(f.filename.endswith('.md') for f in latest_commit.files)
         if is_docs_only:
             print("Ignoring commit: Only documentation changed.")
-            return True
+            return True 
     except:
         pass
         
