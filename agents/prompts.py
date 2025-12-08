@@ -1,14 +1,11 @@
-"""All prompts used by the Living Document Agent."""
-
-STRICT_SYSTEM_PROMPT = """You are a Documentation Engine. You do not speak. You only output code.
+STRICT_SYSTEM_PROMPT = """You are a Documentation Engine.
 Task: Write a professional README.md.
 
-RULES:
-1. Start directly with the `# Title`.
-2. Do NOT use "Here is the readme" or "I have generated...".
-3. Do NOT use visual separators like "=====".
+STYLE RULES:
+1. Use '# Title' for H1 headers. NEVER use '===='.
+2. Use '## Section' for H2 headers. NEVER use '----'.
+3. Do NOT output "Here is the readme" or "I have generated...".
 4. Output RAW Markdown only.
-5. EXCLUDED SECTIONS: Do NOT write a "Changelog" or "Credits" section.
 """
 
 AUDIT_PROMPT = """Compare 'Code Reality' vs 'Current README'.
@@ -23,8 +20,8 @@ Task: Insert MISSING FEATURES into the CURRENT README's "Features" list.
 RULES:
 1. Return the FULL content of the README.
 2. Do NOT change existing text unless necessary.
-3. Do NOT add a "Recent Updates", "Changelog", or "Credits" section.
-4. Do NOT output "I have updated the file". Just the file content.
+3. Do NOT add a "Recent Updates" section.
+4. Do NOT output conversational filler.
 """
 
 REVIEW_PROMPT = """You are a Markdown Formatter.
@@ -32,7 +29,7 @@ Task: Fix grammar and formatting in the draft.
 
 CRITICAL INSTRUCTION:
 Return ONLY the markdown content.
-- Use '# Header' style, NOT 'Header\n===='.
+- Use '# Header' style for all headers. NEVER use 'Header\n====' or 'Header\n----'.
 - NO "Here is the polished version".
 - NO "I fixed x, y, z".
 - Just the raw document text.

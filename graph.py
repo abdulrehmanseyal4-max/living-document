@@ -9,16 +9,13 @@ from agents.state import AgentState
 
 
 def setup_node(state: AgentState):
-    print("---Node: Setup ---")
+    print("--- 📡 Node: Setup ---")
     repo = state['repo']
     documents = github_utils.fetch_repo_file_structure(repo)
-    
-    if not documents: 
-        return {"file_updates": []}
+    if not documents: return {"file_updates": []}
     
     retriever = rag_utils.index_codebase(documents)
     diff = github_utils.fetch_latest_commit_diff(repo)
-    
     try:
         readme = repo.get_readme().decoded_content.decode("utf-8")
     except:
@@ -33,7 +30,7 @@ def setup_node(state: AgentState):
     }
 
 def audit_node(state: AgentState):
-    print("---Node: Audit ---")
+    print("--- 🔍 Node: Audit ---")
     retriever = state['retriever']
     readme = state['current_readme']
     
@@ -46,7 +43,7 @@ def audit_node(state: AgentState):
     return {"code_reality": code_reality, "missing_features": missing}
 
 def writer_node(state: AgentState):
-    print("---Node: Writer ---")
+    print("--- ✍️ Node: Writer ---")
     if state.get('draft_content'):
         return {} 
 
@@ -65,7 +62,7 @@ def writer_node(state: AgentState):
     return {"draft_content": draft}
 
 def reflection_node(state: AgentState):
-    print("---Node: Reflection ---")
+    print("--- 🤔 Node: Reflection ---")
     draft = state.get('draft_content')
     if not draft: return {"critique_feedback": "PERFECT"}
     
@@ -73,20 +70,20 @@ def reflection_node(state: AgentState):
     return {"critique_feedback": feedback}
 
 def reviser_node(state: AgentState):
-    print("---Node: Reviser ---")
+    print("--- 🔧 Node: Reviser ---")
     draft = state['draft_content']
     feedback = state['critique_feedback']
     new_draft = agents.revise_draft(draft, feedback)
     return {"draft_content": new_draft, "revision_count": state['revision_count'] + 1}
 
 def historian_node(state: AgentState):
-    print("---Node: Historian ---")
+    print("--- 📜 Node: Historian ---")
     diff = state['latest_diff']
     entry = agents.generate_changelog(diff)
     return {"changelog_entry": entry}
 
 def packaging_node(state: AgentState):
-    print("---Node: Packaging ---")
+    print("--- 📦 Node: Packaging ---")
     draft = state.get('draft_content')
     final_text = None
     
@@ -111,24 +108,26 @@ def packaging_node(state: AgentState):
     return {"file_updates": updates}
 
 def pr_node(state: AgentState):
-    print("---Node: Publisher ---")
+    print("--- 🚀 Node: Publisher ---")
     updates = state['file_updates']
     if updates:
         url = github_utils.create_multi_file_pr(state['repo'], updates, "docs: Update", "Agent Update")
         print(f"✅ Success! PR: {url}")
     else:
-        print("No updates.")
+        print("💤 No updates.")
     return {}
 
 def should_revise(state: AgentState):
     feedback = state.get('critique_feedback', '')
     count = state.get('revision_count', 0)
+    # Stop if Perfect OR if we tried 1 time already
     if "PERFECT" in feedback or count >= 1:
         return "continue"
     return "revise"
 
 def build_graph():
     workflow = StateGraph(AgentState)
+    
     workflow.add_node("setup", setup_node)
     workflow.add_node("audit", audit_node)
     workflow.add_node("writer", writer_node)
@@ -140,15 +139,29 @@ def build_graph():
     
     workflow.set_entry_point("setup")
     
+    # 1. Start with Audit (Linear Flow)
     workflow.add_edge("setup", "audit")
-    workflow.add_edge("setup", "historian")
     
+    # 2. Then Writer
     workflow.add_edge("audit", "writer")
+    
+    # 3. Then Reflection
     workflow.add_edge("writer", "reflection")
     
-    workflow.add_conditional_edges("reflection", should_revise, {"revise": "reviser", "continue": "packager"})
+    # 4. Loop Logic:
+    # If "revise" -> go to Reviser -> loop back to Reflection
+    # If "continue" -> go to HISTORIAN (This ensures Writer finishes first!)
+    workflow.add_conditional_edges(
+        "reflection", 
+        should_revise, 
+        {
+            "revise": "reviser",
+            "continue": "historian" # <--- Critical Fix: Points to Historian
+        }
+    )
     workflow.add_edge("reviser", "reflection")
     
+    # 5. Finish Line
     workflow.add_edge("historian", "packager")
     workflow.add_edge("packager", "publisher")
     workflow.add_edge("publisher", END)
