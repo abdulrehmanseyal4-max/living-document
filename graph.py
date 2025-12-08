@@ -117,7 +117,7 @@ def pr_node(state: AgentState):
         url = github_utils.create_multi_file_pr(state['repo'], updates, "docs: Update", "Agent Update")
         print(f"✅ Success! PR: {url}")
     else:
-        print("💤 No updates.")
+        print("No updates.")
     return {}
 
 def should_revise(state: AgentState):

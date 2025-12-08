@@ -13,7 +13,7 @@ def index_codebase(file_documents):
     """
     Takes list of {'source': path, 'content': text} and builds a searchable index.
     """
-    print(f"🧠 RAG: Indexing {len(file_documents)} files into Vector DB...")
+    print(f"RAG: Indexing {len(file_documents)} files into Vector DB...")
     
     docs = [Document(page_content=d['content'], metadata={"source": d['source']}) for d in file_documents]
     
@@ -23,12 +23,12 @@ def index_codebase(file_documents):
     if os.path.exists("./chroma_db"):
         try:
             shutil.rmtree("./chroma_db")
-            print("   🧹 Cleared old database cache.")
+            print("Cleared old database cache.")
             time.sleep(1)
         except Exception as e:
-            print(f"   ⚠️ Warning: Could not clear old DB: {e}")
+            print(f"Warning: Could not clear old DB: {e}")
 
-    print(f"💾 Saving database to: {os.path.abspath('./chroma_db')}")
+    print(f"Saving database to: {os.path.abspath('./chroma_db')}")
     vectorstore = Chroma.from_documents(
         documents=splits,
         embedding=get_embeddings_model(),
