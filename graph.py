@@ -9,12 +9,19 @@ from agents.state import AgentState
 
 
 def setup_node(state: AgentState):
-    print("--- 📡 Node: Setup ---")
+    print("---Node: Setup ---")
     repo = state['repo']
+    
+
+    current_sha = github_utils.get_current_commit_sha(repo)
+    print(f"   Target Commit: {current_sha[:7]}")
+
     documents = github_utils.fetch_repo_file_structure(repo)
     if not documents: return {"file_updates": []}
     
-    retriever = rag_utils.index_codebase(documents)
+
+    retriever = rag_utils.index_codebase(documents, current_sha)
+    
     diff = github_utils.fetch_latest_commit_diff(repo)
     try:
         readme = repo.get_readme().decoded_content.decode("utf-8")
@@ -34,7 +41,7 @@ def audit_node(state: AgentState):
     retriever = state['retriever']
     readme = state['current_readme']
     
-    code_reality = rag_utils.query_rag(retriever, "What is the purpose of this project? What problem does it solve? List Tech Stack, Main Features, and Installation steps.")
+    code_reality = rag_utils.query_rag(retriever, "What is the purpose of this project? List Tech Stack, Main Features.")
     
     if not readme.strip():
         return {"missing_features": "CREATE_FRESH", "code_reality": code_reality}
@@ -61,20 +68,6 @@ def writer_node(state: AgentState):
 
     return {"draft_content": draft}
 
-def reflection_node(state: AgentState):
-    print("---Node: Reflection ---")
-    draft = state.get('draft_content')
-    if not draft: return {"critique_feedback": "PERFECT"}
-    
-    feedback = agents.reflect_on_draft(draft, state['code_reality'])
-    return {"critique_feedback": feedback}
-
-def reviser_node(state: AgentState):
-    print("---Node: Reviser ---")
-    draft = state['draft_content']
-    feedback = state['critique_feedback']
-    new_draft = agents.revise_draft(draft, feedback)
-    return {"draft_content": new_draft, "revision_count": state['revision_count'] + 1}
 
 def historian_node(state: AgentState):
     print("---Node: Historian ---")
@@ -88,7 +81,7 @@ def packaging_node(state: AgentState):
     final_text = None
     
     if draft:
-        final_text = agents.review_content(draft)
+        final_text = draft
         
     updates = []
     if final_text:
@@ -117,22 +110,12 @@ def pr_node(state: AgentState):
         print("No updates.")
     return {}
 
-def should_revise(state: AgentState):
-    feedback = state.get('critique_feedback', '')
-    count = state.get('revision_count', 0)
-    # Stop if Perfect OR if we tried 1 time already
-    if "PERFECT" in feedback or count >= 1:
-        return "continue"
-    return "revise"
-
 def build_graph():
     workflow = StateGraph(AgentState)
     
     workflow.add_node("setup", setup_node)
     workflow.add_node("audit", audit_node)
     workflow.add_node("writer", writer_node)
-    workflow.add_node("reflection", reflection_node)
-    workflow.add_node("reviser", reviser_node)
     workflow.add_node("historian", historian_node)
     workflow.add_node("packager", packaging_node)
     workflow.add_node("publisher", pr_node)
@@ -140,23 +123,8 @@ def build_graph():
     workflow.set_entry_point("setup")
     
     workflow.add_edge("setup", "audit")
-    
     workflow.add_edge("audit", "writer")
-    
-    workflow.add_edge("writer", "reflection")
-    
-    # If "revise" -> go to Reviser -> loop back to Reflection
-    # If "continue" -> go to HISTORIAN (This ensures Writer finishes first!)
-    workflow.add_conditional_edges(
-        "reflection", 
-        should_revise, 
-        {
-            "revise": "reviser",
-            "continue": "historian" 
-        }
-    )
-    workflow.add_edge("reviser", "reflection")
-    
+    workflow.add_edge("writer", "historian")
     workflow.add_edge("historian", "packager")
     workflow.add_edge("packager", "publisher")
     workflow.add_edge("publisher", END)

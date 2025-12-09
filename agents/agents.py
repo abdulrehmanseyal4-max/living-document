@@ -2,14 +2,13 @@ import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
+
 from agents.prompts import (
     STRICT_SYSTEM_PROMPT,
     AUDIT_PROMPT,
     INTEGRATION_PROMPT,
     REVIEW_PROMPT,
-    CHANGELOG_PROMPT,
-    CRITIQUE_PROMPT,
-    REVISION_PROMPT
+    CHANGELOG_PROMPT
 )
 
 load_dotenv()
@@ -21,8 +20,14 @@ def clean_response(text):
     Aggressively removes conversational filler from start AND end.
     """
     lines = text.strip().split('\n')
-    if lines and (lines[0].lower().startswith("here is") or lines[0].lower().startswith("sure")):
-        lines = lines[1:]
+    
+    start_index = 0
+    for i in range(min(3, len(lines))):
+        line_lower = lines[i].lower()
+        if "here is" in line_lower or "sure," in line_lower or "i have" in line_lower:
+            start_index = i + 1
+            
+    lines = lines[start_index:]
     
     filler_phrases = [
         "I've made the following changes",
@@ -32,7 +37,8 @@ def clean_response(text):
         "Summary of changes:",
         "Here is the polished",
         "I have fixed",
-        "Here is the code"
+        "Here is the code",
+        "Let me know if"
     ]
     
     clean_lines = []
@@ -43,13 +49,16 @@ def clean_response(text):
             if phrase.lower() in line.lower() and len(line) < 100:
                 found_filler = True
                 break
+        
         if found_filler:
-            break
+            break 
+            
         clean_lines.append(line)
         
     return "\n".join(clean_lines).strip()
 
 def run_stream(chain, inputs):
+    """Runs the chain with live terminal output, returning cleaned string."""
     full_response = ""
     print("\033[96m   > \033[0m", end="", flush=True) 
     
@@ -60,6 +69,8 @@ def run_stream(chain, inputs):
         
     print("\n")
     return clean_response(full_response)
+
+# --- AGENT FUNCTIONS ---
 
 def draft_fresh_readme(context):
     print("Agent: Drafting fresh README...")
@@ -106,21 +117,3 @@ def generate_changelog(diff_text):
     ])
     chain = prompt | llm
     return run_stream(chain, {"diff": diff_text})
-
-def reflect_on_draft(draft, code_context):
-    print("Reflection: Checking for missing tech/features...")
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", CRITIQUE_PROMPT),
-        ("human", "DRAFT:\n{draft}\n\nCODE CONTEXT:\n{context}")
-    ])
-    chain = prompt | llm
-    return run_stream(chain, {"draft": draft, "context": code_context})
-
-def revise_draft(draft, feedback):
-    print("Reviser: Fixing draft based on feedback...")
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", REVISION_PROMPT),
-        ("human", "DRAFT:\n{draft}\n\nFEEDBACK:\n{feedback}")
-    ])
-    chain = prompt | llm
-    return run_stream(chain, {"draft": draft, "feedback": feedback})
