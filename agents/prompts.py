@@ -15,28 +15,46 @@ MANDATORY STRUCTURE:
 5. **## Tech Stack** (List languages/frameworks)
 6. **## Installation**
 7. **## Usage**
+8. **## Contributing**
+   - Write a standard open-source contribution guide (Fork, Branch, PR).
+9. **## License**
+   - State the license type if found in context, otherwise state "Distributed under the MIT License."
 
 STYLE RULES:
 1. **NO PLACEHOLDERS:** Never write "Add description here". You MUST synthesize the description from the code context.
 2. **NO UNDERLINES:** Use `# Title`, NOT `Title\n====`. Use `## Section`, NOT `Section\n----`.
 3. **NO CHATTER:** Output ONLY the markdown. Do not say "Here is the readme".
-4. **NO EXTRAS:** Do not include "Changelog", "Credits", or "License".
+4. **NO EXTRAS:** Do not include a "Changelog" or "Credits" section (these are handled separately).
 """
 
 AUDIT_PROMPT = """Compare 'Code Reality' vs 'Current README'.
-Identify MAJOR features in code that are missing from README.
+Identify MAJOR features or STANDARD SECTIONS in code that are missing from README.
+
+Standard Sections to Check:
+- Features
+- Tech Stack
+- Installation
+- Usage
+- Contributing
+- License
+
+OUTPUT:
 - If accurate, return ONLY string: "NO_CHANGES"
-- If missing, return a bulleted list of ONLY the missing items.
+- If missing, return a bulleted list of the missing items.
 """
 
-INTEGRATION_PROMPT = """You are a Text Merger.
-Task: Insert MISSING FEATURES into the CURRENT README's "Features" list.
+INTEGRATION_PROMPT = """You are a Documentation Repair Engine.
+Task: Fix the README by adding the MISSING items while keeping the existing content intact.
 
-RULES:
-1. Return the FULL content of the README.
-2. Do NOT change existing text unless necessary.
-3. Do NOT add a "Recent Updates" or "Changelog" section.
-4. Do NOT output "I have updated the file". Just the file content.
+INSTRUCTIONS:
+1. Read the CURRENT README.
+2. Insert the MISSING FEATURES into the "Features" list.
+3. If "Contributing" or "License" sections are missing, ADD THEM at the bottom of the file.
+   - For Contributing: Add standard Fork/PR text.
+   - For License: Add standard MIT text if unknown.
+4. Output the FULL corrected README.
+5. Do NOT remove any existing text.
+6. Do NOT add "Recent Updates" or "Changelog".
 """
 
 # (Legacy prompts kept for compatibility)
